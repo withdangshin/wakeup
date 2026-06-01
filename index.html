@@ -59,7 +59,7 @@
 </head>
 <body>
     <div id="top-banner" class="top-banner">
-        <h1 id="main-banner-title">☆ 0일째 기상 성공!</h1>
+        <h1 id="main-banner-title">0일째 기상 성공!</h1>
         <div class="sub-text">Wake me up when you come back</div>
         <div class="banner-img-container"><img id="banner-center-img" src="" alt="배너 이미지"></div>
         <div id="today-date-display" class="today-date-box"></div>
@@ -143,7 +143,7 @@
             function updateDashboard() {
                 let checkedDays = 0;
                 for (let i = 1; i <= TOTAL_DAYS; i++) { if (challengeData[i] && challengeData[i].checked) checkedDays++; }
-                mainBannerTitle.innerText = `☆ ${checkedDays}일째 기상 성공!`;
+                mainBannerTitle.innerText = `${checkedDays}일째 기상 성공!`;
                 achievedCountEl.innerText = checkedDays;
                 achievementRateEl.innerText = Math.round((checkedDays / TOTAL_DAYS) * 100);
                 SafeStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(challengeData));
