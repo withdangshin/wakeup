@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8시 기상 100일 챌린지</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#5e4069">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        @font-face {
+            font-family: 'YdeStreet';
+            src: url('YDESTREETL.TTF') format('truetype');
+            font-weight: normal; font-style: normal;
+        }
+        * { box-sizing: border-box; }
+        body, button, input, select, textarea { font-family: 'YdeStreet', 'Pretendard', sans-serif; }
+        body {
+            background-color: #f7deff; color: #5e4069; margin: 0; padding: 0 0 60px 0;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .top-banner {
+            background-color: #5e4069; color: #ffffff; width: 100%; text-align: center;
+            padding: 40px 20px 25px 20px; border-bottom: 4px solid #3c2644; margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15); display: flex; flex-direction: column; align-items: center; 
+        }
+        .top-banner h1 { font-size: 32px; font-weight: 800; margin: 0 0 12px 0; color: #ffffff; }
+        .top-banner .sub-text { font-size: 16px; font-weight: 500; margin: 0; color: #ffffff; }
+        .banner-img-container { margin-top: 15px; display: flex; justify-content: center; align-items: center; width: 100%; }
+        #banner-center-img { width: auto; height: auto; max-width: 100%; border: none; display: none; }
+        .today-date-box {
+            margin-top: 15px; font-size: 18px; font-weight: bold; color: #f7deff;
+            background-color: rgba(0, 0, 0, 0.2); padding: 6px 16px; border-radius: 20px;
+        }
+        .container { max-width: 1000px; width: 95%; background: #ffffff; padding: 25px; border-radius: 20px; border: 3px solid #5e4069; box-shadow: 0 6px 0px #5e4069; }
+        .stats-bar { display: flex; justify-content: space-around; align-items: center; margin-bottom: 25px; padding: 15px; background: #f7deff; border-radius: 12px; border: 2px solid #5e4069; }
+        .stat-item { text-align: center; }
+        .stat-label { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+        .stat-value { font-size: 26px; font-weight: 800; }
+        .grid-wrapper { width: 100%; overflow-x: auto; padding-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; min-width: 750px; padding: 5px; }
+        .day-box { background-color: #ffffff; border: 2px solid #5e4069; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 15px 5px; cursor: pointer; user-select: none; min-height: 100px; transition: transform 0.1s ease, background-color 0.1s ease; }
+        .day-box:hover { transform: scale(1.03); background-color: #faf0fc; }
+        .day-num { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+        .daisy-icon { width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; }
+        .daisy-icon img { width: 100%; height: 100%; object-fit: contain; }
+        .day-box.checked { background-color: #f4e6f7; }
+        .footer-control { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+        .action-btn { background-color: transparent; color: #5e4069; border: 2px solid #5e4069; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .action-btn:hover { background-color: #e8c6f2; }
+        .reset-btn { color: #bc4545; border-color: #bc4545; }
+        .reset-btn:hover { background-color: #fde8e8; }
+    </style>
+</head>
+<body>
+    <div id="top-banner" class="top-banner">
+        <h1 id="main-banner-title">⏰ 0일째 기상 성공 중입니다!</h1>
+        <div class="sub-text">Wake me up when you come back</div>
+        <div class="banner-img-container"><img id="banner-center-img" src="" alt="배너 이미지"></div>
+        <div id="today-date-display" class="today-date-box"></div>
+    </div>
+    <div class="container">
+        <div class="stats-bar">
+            <div class="stat-item"><div class="stat-label">목표 기간</div><div class="stat-value">100일</div></div>
+            <div class="stat-item"><div class="stat-label">기상 성공 일수</div><div class="stat-value"><span id="achieved-count">0</span>일</div></div>
+            <div class="stat-item"><div class="stat-label">달성률</div><div class="stat-value"><span id="achievement-rate">0</span>%</div></div>
+        </div>
+        <div class="grid-wrapper"><div id="challenge-grid" class="grid"></div></div>
+        <div class="footer-control">
+            <button class="action-btn" onclick="changeCenterImage()">배너 이미지 변경</button>
+            <button class="action-btn reset-btn" onclick="hardReset()">진도 완전 초기화</button>
+        </div>
+    </div>
+    <script>
+    // PWA 서비스 워커 등록 스크립트
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
+        });
+    }
+
+    (function() {
+        try {
+            const TOTAL_DAYS = 100;
+            const gridContainer = document.getElementById('challenge-grid');
+            const mainBannerTitle = document.getElementById('main-banner-title');
+            const achievedCountEl = document.getElementById('achieved-count');
+            const achievementRateEl = document.getElementById('achievement-rate');
+            const centerImgEl = document.getElementById('banner-center-img');
+            const todayDateDisplay = document.getElementById('today-date-display');
+
+            const IMG_UNCHECKED = '탭아이콘 데이지3 녹색.png'; 
+            const IMG_CHECKED = '탭아이콘 데이지.png';        
+
+            const STORAGE_KEY_DATA = 'wakeup_challenge_data_v5';
+            const STORAGE_KEY_IMG = 'wakeup_challenge_center_url_v5';
+
+            const SafeStorage = {
+                getItem(key) { try { return localStorage.getItem(key); } catch (e) { return null; } },
+                setItem(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
+            };
+
+            function injectTodayDate() {
+                if (!todayDateDisplay) return;
+                const today = new Date();
+                const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+                todayDateDisplay.innerText = `${today.toLocaleDateString('ko-KR', options)}`;
+            }
+
+            function applyCenterImage(url) {
+                if (url && url.trim() !== '') {
+                    centerImgEl.src = url.trim(); centerImgEl.style.display = 'block';
+                } else {
+                    centerImgEl.src = ''; centerImgEl.style.display = 'none';
+                }
+            }
+
+            window.changeCenterImage = function() {
+                let currentUrl = SafeStorage.getItem(STORAGE_KEY_IMG) || '';
+                let newUrl = prompt("기상 명언 아래에 배치할 외부 이미지 주소(URL)를 입력하십시오:", currentUrl);
+                if (newUrl !== null) {
+                    SafeStorage.setItem(STORAGE_KEY_IMG, newUrl.trim());
+                    applyCenterImage(newUrl.trim());
+                }
+            };
+
+            injectTodayDate();
+            applyCenterImage(SafeStorage.getItem(STORAGE_KEY_IMG) || '');
+
+            let challengeData = {};
+            let raw = SafeStorage.getItem(STORAGE_KEY_DATA);
+            if (raw) { try { challengeData = JSON.parse(raw) || {}; } catch(e) {} }
+
+            for (let i = 1; i <= TOTAL_DAYS; i++) {
+                if (!challengeData[i] || typeof challengeData[i] !== 'object') challengeData[i] = { checked: false };
+            }
+
+            function updateDashboard() {
+                let checkedDays = 0;
+                for (let i = 1; i <= TOTAL_DAYS; i++) { if (challengeData[i] && challengeData[i].checked) checkedDays++; }
+                mainBannerTitle.innerText = `⏰ ${checkedDays}일째 기상 성공 중입니다!`;
+                achievedCountEl.innerText = checkedDays;
+                achievementRateEl.innerText = Math.round((checkedDays / TOTAL_DAYS) * 100);
+                SafeStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(challengeData));
+            }
+
+            function generateGrid() {
+                if (!gridContainer) return;
+                gridContainer.innerHTML = '';
+                for (let day = 1; day <= TOTAL_DAYS; day++) {
+                    const box = document.createElement('div');
+                    box.classList.add('day-box'); box.dataset.day = day;
+                    const isChecked = challengeData[day].checked;
+                    if (isChecked) box.classList.add('checked');
+                    box.innerHTML = `<span class="day-num">${day}일</span><div class="daisy-icon"><img src="${isChecked ? IMG_CHECKED : IMG_UNCHECKED}" alt="아이콘"></div>`;
+                    box.addEventListener('click', function() {
+                        const currentDay = this.dataset.day;
+                        const imgEl = this.querySelector('.daisy-icon img');
+                        if (this.classList.contains('checked')) {
+                            this.classList.remove('checked'); challengeData[currentDay].checked = false;
+                            if (imgEl) imgEl.src = IMG_UNCHECKED;
+                        } else {
+                            this.classList.add('checked'); challengeData[currentDay].checked = true;
+                            if (imgEl) imgEl.src = IMG_CHECKED;
+                        }
+                        updateDashboard();
+                    });
+                    gridContainer.appendChild(box);
+                }
+            }
+
+            window.hardReset = function() {
+                if (confirm("정말 초기화하시겠습니까?")) {
+                    for (let i = 1; i <= TOTAL_DAYS; i++) challengeData[i] = { checked: false };
+                    SafeStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(challengeData));
+                    generateGrid(); updateDashboard();
+                }
+            };
+            generateGrid(); updateDashboard();
+        } catch (e) { console.error(e); }
+    })();
+    </script>
+</body>
+</html>
